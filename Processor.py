@@ -121,7 +121,8 @@ class Processor:
         return sc_data
     
     def prepare_training_data(self, 
-                              return_tensors: Literal["np", "pt"] = "np"
+                              return_tensors: Literal["np", "pt"] = "np",
+                              wavelet_transform = True
         ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
 
         df = self.train_data.copy()
@@ -137,24 +138,32 @@ class Processor:
             df_x = self.apply_bandpass_filter(df_x, lowcut=0.5, highcut=5, fs=self.fs)
         df_x = self.scaler.fit_transform(df_x.T).T  # Transpose to standardize each signal independently
 
-        df_x_wavelets = []
-        for wavelet in self.mother_wavelets:
-            df_x_wv = self.apply_cwt(df_x, wavelet=wavelet, num_scales=self.num_scales)
-            df_x_wavelets.append(df_x_wv)
-        
-        df_x_wavelets = np.stack(df_x_wavelets, axis=1)
+        if wavelet_transform:
+            df_x_wavelets = []
+            for wavelet in self.mother_wavelets:
+                df_x_wv = self.apply_cwt(df_x, wavelet=wavelet, num_scales=self.num_scales)
+                df_x_wavelets.append(df_x_wv)
+            
+            df_x_wavelets = np.stack(df_x_wavelets, axis=1)
 
-        df_x_wavelets = self.scale_data(df_x_wavelets)
+            df_x_wavelets = self.scale_data(df_x_wavelets)
 
-        if return_tensors == "pt":
-            df_x_wavelets = torch.FloatTensor(df_x_wavelets)
-            df_y = torch.FloatTensor(df_y)
-        
-        return df_x_wavelets, df_y
+            if return_tensors == "pt":
+                df_x_wavelets = torch.FloatTensor(df_x_wavelets)
+                df_y = torch.FloatTensor(df_y)
+            
+            return df_x_wavelets, df_y
+        else:
+            if return_tensors == "pt":
+                df_x = torch.FloatTensor(df_x)
+                df_y = torch.FloatTensor(df_y)
+            
+            return df_x, df_y
     
     
     def prepare_test_data(self, 
-                              return_tensors: Literal["np", "pt"] = "np"
+                          return_tensors: Literal["np", "pt"] = "np",
+                          wavelet_transform = True
         ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
 
         df = self.test_data.copy()
@@ -170,19 +179,26 @@ class Processor:
         
         df_x = self.scaler.fit_transform(df_x.T).T  # Transpose to standardize each signal independently
 
-        df_x_wavelets = []
-        for wavelet in self.mother_wavelets:
-            df_x_wv = self.apply_cwt(df_x, wavelet=wavelet, num_scales=self.num_scales)
-            df_x_wavelets.append(df_x_wv)
-        
-        df_x_wavelets = np.stack(df_x_wavelets, axis=1)
-        df_x_wavelets = self.scale_data(df_x_wavelets)
+        if wavelet_transform:
+            df_x_wavelets = []
+            for wavelet in self.mother_wavelets:
+                df_x_wv = self.apply_cwt(df_x, wavelet=wavelet, num_scales=self.num_scales)
+                df_x_wavelets.append(df_x_wv)
+            
+            df_x_wavelets = np.stack(df_x_wavelets, axis=1)
+            df_x_wavelets = self.scale_data(df_x_wavelets)
 
-        if return_tensors == "pt":
-            df_x_wavelets = torch.FloatTensor(df_x_wavelets)
-            df_y = torch.FloatTensor(df_y)
-        
-        return df_x_wavelets, df_y
+            if return_tensors == "pt":
+                df_x_wavelets = torch.FloatTensor(df_x_wavelets)
+                df_y = torch.FloatTensor(df_y)
+            
+            return df_x_wavelets, df_y
+        else:
+            if return_tensors == "pt":
+                df_x = torch.FloatTensor(df_x)
+                df_y = torch.FloatTensor(df_y)
+
+            return df_x, df_y
     
 
 

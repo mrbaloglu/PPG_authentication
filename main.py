@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.metrics import precision_recall_curve, classification_report, confusion_matrix, roc_curve
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 
 import torch
 import keras
@@ -33,11 +33,16 @@ if __name__ == "__main__":
 
     NUM_SCALES = 64
     MOTHER_WAVELETS = ["mexh", "morl", "gaus5"]
+    OLD_DATA = True
+    mlflow.start_run()
+    mlflow.log_param("num scales", NUM_SCALES)
+    mlflow.log_param("Mother Wavelets", ", ".join(MOTHER_WAVELETS))
+    mlflow.log_param("old data", OLD_DATA)
 
     processor = Processor(trn_data, tst_data, "ID", ["Serial", "ID", "Total"], 
                           mother_wavelets=MOTHER_WAVELETS,
                           num_scales=NUM_SCALES,
-                          old_data=True)
+                          old_data=OLD_DATA)
     
     xtrain, ytrain = processor.prepare_training_data(return_tensors="np")
     xtest, ytest = processor.prepare_test_data(return_tensors="np")
@@ -52,8 +57,8 @@ if __name__ == "__main__":
 
     print(f"xtrain: {xtrain.shape}, ytrain: {ytrain.shape}")
 
-    N_CONV_FILTERS = [64, 256, 64]
-    CONV_WINDOW_SIZES = [3, 5, 5]
+    N_CONV_FILTERS = [128, 64]
+    CONV_WINDOW_SIZES = [5, 5]
     N_DENSE_UNITS = [128, 64]
 
 
@@ -99,11 +104,20 @@ if __name__ == "__main__":
     pred = cnn.predict(xtest)
     pred_ = pred.argmax(axis=1)
 
-    print(classification_report(ytest.argmax(axis=1), pred_))
+    print(classification_report(ytest.argmax(axis=1), pred_, digits=6))
+    acc = accuracy_score(ytest.argmax(axis=1), pred_)
+    f1_micro = f1_score(ytest.argmax(axis=1), pred_, average="micro")
+    f1_macro = f1_score(ytest.argmax(axis=1), pred_, average="macro")
+    mlflow.log_metric("Test Accuracy", acc)
+    mlflow.log_metric("Test Micro F1", f1_micro)
+    mlflow.log_metric("Test Macro F1", f1_macro)
+
     cm = confusion_matrix(ytest.argmax(axis=1), pred_, normalize="pred")
     sns.heatmap(cm)
     plt.title("Confusion Matrix")
     plt.savefig("charts/Confusion Matrix.png")
     plt.close("all")
 
-    cnn.save("cnn_model_.keras")
+    mlflow.log_artifact("charts")
+    mlflow.keras.log_model(cnn, "cnn_model")
+    mlflow.end_run()
