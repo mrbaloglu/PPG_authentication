@@ -26,39 +26,49 @@ def scheduler(epoch, lr):
 
 
 if __name__ == "__main__":
-    trn_data = pd.read_excel("train8.xlsx", sheet_name="Sheet1")
-    tst_data = pd.read_excel("test8.xlsx", sheet_name="Sheet1")
+
+    OLD_DATA = True
+    if OLD_DATA:
+        trn_data = pd.read_excel("train8.xlsx", sheet_name="Sheet1")
+        tst_data = pd.read_excel("test8.xlsx", sheet_name="Sheet1")
+    else:
+        trn_data = pd.read_excel("total8.xlsx", sheet_name="Trainset")
+        tst_data = pd.read_excel("total8.xlsx", sheet_name="Testset")
+
 
     print("Data is read.")
 
     NUM_SCALES = 64
-    MOTHER_WAVELETS = ["mexh", "morl", "gaus5"]
-    OLD_DATA = True
+    MOTHER_WAVELETS = ["mexh", "morl", "gaus5"] # ["db4", "haar"]
+    WAVELET_TRANSFORM_TYPE = "continuous"
+    
     mlflow.start_run()
     mlflow.log_param("num scales", NUM_SCALES)
     mlflow.log_param("Mother Wavelets", ", ".join(MOTHER_WAVELETS))
     mlflow.log_param("old data", OLD_DATA)
+    mlflow.log_param("wavelet transform type", WAVELET_TRANSFORM_TYPE)
 
     processor = Processor(trn_data, tst_data, "ID", ["Serial", "ID", "Total"], 
                           mother_wavelets=MOTHER_WAVELETS,
                           num_scales=NUM_SCALES,
                           old_data=OLD_DATA)
     
-    xtrain, ytrain = processor.prepare_training_data(return_tensors="np")
-    xtest, ytest = processor.prepare_test_data(return_tensors="np")
+    xtrain, ytrain = processor.prepare_training_data(return_tensors="np", wavelet_transform=WAVELET_TRANSFORM_TYPE)
+    xtest, ytest = processor.prepare_test_data(return_tensors="np", wavelet_transform=WAVELET_TRANSFORM_TYPE)
 
     print("Data preparation and processing is completed.")
 
-    xtrain = np.swapaxes(xtrain, 1, 3)
-    xtrain = np.swapaxes(xtrain, 1, 2)
+    if WAVELET_TRANSFORM_TYPE == "continuous":
+        xtrain = np.swapaxes(xtrain, 1, 3)
+        xtrain = np.swapaxes(xtrain, 1, 2)
 
-    xtest = np.swapaxes(xtest, 1, 3)
-    xtest = np.swapaxes(xtest, 1, 2)
+        xtest = np.swapaxes(xtest, 1, 3)
+        xtest = np.swapaxes(xtest, 1, 2)
 
     print(f"xtrain: {xtrain.shape}, ytrain: {ytrain.shape}")
 
-    N_CONV_FILTERS = [128, 64]
-    CONV_WINDOW_SIZES = [5, 5]
+    N_CONV_FILTERS = [64, 128, 64]
+    CONV_WINDOW_SIZES = [3, 5, 5]
     N_DENSE_UNITS = [128, 64]
 
 
